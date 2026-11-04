@@ -12,13 +12,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="format-detection" content="telephone=no">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8090; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'">
-<link rel="manifest" href="manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8090; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'self'">
+<link rel="manifest" href="manifest.webmanifest?v=8">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-v8.png?v=8">
 <link rel="preload" href="fonts/assistant-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 <div id="splash"><img src="icons/icon-192.png" alt=""><div>GFF Receipts</div></div>
@@ -29,12 +29,39 @@
     <img class="login-logo" src="icons/icon-192.png" alt="Good Father Farms">
     <h1>Good Father Farms</h1>
     <p class="login-sub">Receipts &amp; money log</p>
-    <label class="f" for="l-name">Your name</label>
-    <input id="l-name" autocomplete="username" autocapitalize="words" placeholder="First name">
-    <label class="f" for="l-pin">PIN</label>
-    <input id="l-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="4 to 6 digits">
-    <button class="save" id="l-go">Sign in</button>
+    <!-- A real form so iCloud Keychain / Google Password Manager offer to save and fill the PIN.
+         On success the app either stores it with the Credential Management API (Chrome/Android) or lets this form
+         really submit to ./signed-in, which the service worker answers from cache (the PIN never leaves the phone). -->
+    <form id="l-form" method="post" action="signed-in" autocomplete="on" novalidate>
+      <label class="f" for="l-name">Your name</label>
+      <input id="l-name" name="username" autocomplete="username" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="First name" required>
+      <label class="f" for="l-pin">PIN</label>
+      <input id="l-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" autocomplete="current-password" placeholder="4 to 6 digits" required>
+      <label class="chk"><input type="checkbox" id="l-remember" name="remember" value="1"> Keep me signed in on this device</label>
+      <div class="hint" id="l-remember-hint">Owner: stays signed in for a year on this phone. Everyone else: 30 days.</div>
+      <button class="save" id="l-go" type="submit">Sign in</button>
+    </form>
+    <button class="linkbtn" id="l-forgot" type="button">Forgot PIN?</button>
     <div class="hint center" id="l-msg">Ask Jonah for your PIN.</div>
+  </div>
+</section>
+
+<!-- SET A NEW PIN (from the emailed reset link: ...#reset=<token>) -->
+<section id="reset" class="hide">
+  <div class="login-card">
+    <img class="login-logo" src="icons/icon-192.png" alt="Good Father Farms">
+    <h1>Pick a new PIN</h1>
+    <form id="r-form" method="post" action="pin-set" autocomplete="on" novalidate>
+      <label class="f" for="r-name">Name</label>
+      <input id="r-name" name="username" autocomplete="username" readonly>
+      <label class="f" for="r-pin">New PIN (4 to 6 digits)</label>
+      <input id="r-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" autocomplete="new-password" required>
+      <label class="f" for="r-pin2">New PIN again</label>
+      <input id="r-pin2" name="password2" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="6" autocomplete="new-password" required>
+      <button class="save" id="r-go" type="submit">Set new PIN</button>
+    </form>
+    <div class="hint center" id="r-msg">Checking the link…</div>
+    <button class="linkbtn" id="r-back" type="button">Back to sign in</button>
   </div>
 </section>
 
@@ -206,11 +233,16 @@
     <h2>Settings</h2>
     <div class="card"><div class="k">Signed in as</div><div class="v small" id="set-who"></div></div>
     <button class="btn wide" id="set-pin">Change my PIN</button>
+    <h2>Signed-in devices</h2>
+    <div class="hint" id="set-sess"></div>
+    <div id="devices"></div>
+    <button class="btn wide" id="set-out-others">Sign out my other devices</button>
     <div id="teamBox" class="hide">
       <h2>Team</h2>
       <div class="hint">Each person signs in with their own name and PIN. Turning someone off signs them out on every phone right away.</div>
       <div id="team"></div>
       <button class="btn wide" id="team-add">＋ Add a person</button>
+      <button class="btn wide danger" id="team-out-all">Sign out everyone else (all people, all phones)</button>
     </div>
     <h2>This phone</h2>
     <button class="btn wide" id="set-sync">↻ Send waiting entries now</button>
@@ -237,7 +269,7 @@
   </div>
 </div>
 <div id="toast"></div>
-<script src="config.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

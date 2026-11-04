@@ -1,4 +1,4 @@
-/* GFF Receipts PWA (v7). Talks to the Apps Script backend with fetch:
+/* GFF Receipts PWA (v8). Talks to the Apps Script backend with fetch:
    POST, Content-Type text/plain (no CORS preflight), redirect: follow (Apps Script answers 302 -> googleusercontent).
    Offline: the app shell is cached by sw.js; unsent entries wait in IndexedDB and go up when there's signal. */
 'use strict';
@@ -8,7 +8,7 @@
   // A different backend can only be picked on a local test server, so a link can never point the real app elsewhere.
   var API = (IS_LOCAL && new URLSearchParams(location.search).get('api')) || (IS_LOCAL && localStorage.getItem('gff_api')) || CFG.API_URL;
   if (IS_LOCAL && new URLSearchParams(location.search).get('api')) localStorage.setItem('gff_api', API);
-  var VERSION = CFG.APP_VERSION || '7';
+  var VERSION = CFG.APP_VERSION || '8';
   var PAYS = ['Card', 'Cash', 'Check', 'Square', 'Other'];
   var NEW = '__new';
 
@@ -65,6 +65,8 @@
   function confirmBox(text, okText) { return ask(text, [], okText || 'Yes').then(function (v) { return !!v; }); }
 
   // ---------- backend ----------
+  // Calls that work without a sign-in: an 'auth' error from these is about the PIN or reset link, not a lost session.
+  var NO_TOKEN = { login: 1, requestPinReset: 1, checkReset: 1, resetWithToken: 1 };
   function api(action, data, opts) {
     opts = opts || {};
     var body = JSON.stringify(Object.assign({ action: action, token: S.token }, data || {}));
@@ -78,7 +80,7 @@
       }, function () { var e = new Error(navigator.onLine ? 'Could not reach the server.' : 'No signal.'); e.code = 'net'; setNet(false); throw e; })
       .then(function (j) {
         clearTimeout(timer); setNet(true);
-        if (!j.ok) { var e = new Error(j.error || 'Something went wrong.'); e.code = j.code || 'bad'; if (e.code === 'auth' && action !== 'login') authLost(e.message); throw e; }
+        if (!j.ok) { var e = new Error(j.error || 'Something went wrong.'); e.code = j.code || 'bad'; if (e.code === 'auth' && !NO_TOKEN[action]) authLost(e.message); throw e; }
         return j;
       }, function (e) { clearTimeout(timer); throw e; });
   }
@@ -112,9 +114,20 @@
   })();
 
   // ---------- sign-in ----------
+  // Password managers: the sign-in is a real <form> (username + current-password). After the backend says the PIN
+  // is right, the browser is told about it:
+  //  - Chrome/Android (Credential Management API): navigator.credentials.store(PasswordCredential).
+  //  - Safari/iOS (iCloud Keychain) and others: WebKit only offers "Save password" after a real form submission
+  //    that navigates, so the form is allowed to submit to ./signed-in. The service worker answers that POST
+  //    from its cache, so the PIN never goes to GitHub or anywhere else, and the app reopens signed in.
+  //  - No service worker yet (very first open): the page stays put (history.replaceState), the form is hidden.
+  var HAS_PC = !!(window.PasswordCredential && navigator.credentials && navigator.credentials.store);
+  var nativeSubmit = false;
+  function device() { return (navigator.userAgent.match(/\(([^)]+)\)/) || [])[1] || ''; }
   function showLogin(msg) {
-    $('splash').classList.add('hide'); $('app').classList.add('hide'); $('login').classList.remove('hide'); $('toast').className = '';
+    $('splash').classList.add('hide'); $('app').classList.add('hide'); $('reset').classList.add('hide'); $('login').classList.remove('hide'); $('toast').className = '';
     $('l-name').value = LS.get('lastName', ''); $('l-pin').value = '';
+    $('l-remember').checked = !!LS.get('remember', false);
     $('l-msg').textContent = msg || 'Ask Jonah for your PIN.';
     setTimeout(function () { ($('l-name').value ? $('l-pin') : $('l-name')).focus(); }, 60);
   }
@@ -122,21 +135,105 @@
     S.token = ''; LS.del('token');
     showLogin((msg || 'Please sign in again.') + ' Anything waiting to send is still on this phone.');
   }
-  function doLogin() {
-    var name = $('l-name').value.trim(), pin = $('l-pin').value.trim();
+  function signedIn(r, name) {
+    S.token = r.token; S.user = r.user; LS.set('token', r.token); LS.set('user', r.user); LS.set('lastName', name);
+    LS.set('sessExp', r.expires || 0); LS.set('sessTrusted', !!r.trusted);
+    if (S.boot && S.boot.user && S.boot.user.uid !== r.user.uid) { S.boot = null; LS.del('boot'); LS.del('custs'); }
+  }
+  // Tells the phone's password manager the sign-in worked. form = the <form>, id/pw = what was typed.
+  function offerSave(form, id, pw) {
+    if (HAS_PC) {
+      try {
+        var c = new window.PasswordCredential({ id: id, password: pw, name: id });
+        return navigator.credentials.store(c).catch(function () {}).then(function () { return false; });
+      } catch (e) { /* fall through */ }
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      nativeSubmit = true;
+      if (form.requestSubmit) form.requestSubmit(); else form.submit();
+      return Promise.resolve(true);   // the page is navigating
+    }
+    try { history.replaceState({ signedIn: Date.now() }, '', location.pathname + location.search); } catch (e) {}
+    return Promise.resolve(false);
+  }
+  function doLogin(e) {
+    if (nativeSubmit) return;   // second pass: let the browser really submit (see offerSave)
+    if (e) e.preventDefault();
+    var name = $('l-name').value.trim(), pin = $('l-pin').value.trim(), remember = $('l-remember').checked;
     if (!name || !/^\d{4,6}$/.test(pin)) { $('l-msg').textContent = 'Type your name and your 4 to 6 digit PIN.'; return; }
     $('l-go').disabled = true; $('l-go').textContent = 'Signing in…';
-    api('login', { name: name, pin: pin, device: (navigator.userAgent.match(/\(([^)]+)\)/) || [])[1] || '' }).then(function (r) {
-      S.token = r.token; S.user = r.user; LS.set('token', r.token); LS.set('user', r.user); LS.set('lastName', name);
-      if (S.boot && S.boot.user && S.boot.user.uid !== r.user.uid) { S.boot = null; LS.del('boot'); LS.del('custs'); }
-      $('login').classList.add('hide'); start();
-    }).catch(function (e) {
-      $('l-msg').textContent = e.code === 'net' ? 'No connection. Signing in needs signal the first time.' : e.message;
-    }).then(function () { $('l-go').disabled = false; $('l-go').textContent = 'Sign in'; $('l-pin').value = ''; });
+    LS.set('remember', remember);
+    api('login', { name: name, pin: pin, remember: remember, device: device() }).then(function (r) {
+      signedIn(r, name);
+      $('l-name').value = name;   // the password manager reads the typed values from the form
+      return offerSave($('l-form'), name, pin).then(function (navigating) {
+        if (navigating) return;
+        $('login').classList.add('hide'); $('l-pin').value = ''; start();
+      });
+    }).catch(function (e2) {
+      $('l-pin').value = '';
+      $('l-msg').textContent = e2.code === 'net' ? 'No connection. Signing in needs signal the first time.' : e2.message;
+    }).then(function () { $('l-go').disabled = false; $('l-go').textContent = 'Sign in'; });
   }
-  $('l-go').onclick = doLogin;
-  $('l-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
-  $('l-name').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('l-pin').focus(); });
+  $('l-form').addEventListener('submit', doLogin);
+  // Chrome/Android: offer a saved PIN on the sign-in screen (never signs in silently after "Sign out").
+  function tryStoredCredential() {
+    if (!HAS_PC || !navigator.credentials.get) return;
+    navigator.credentials.get({ password: true, mediation: 'optional' }).then(function (c) {
+      if (!c || c.type !== 'password' || !c.password || S.token) return;
+      $('l-name').value = c.id; $('l-pin').value = c.password;
+    }).catch(function () {});
+  }
+
+  // ---------- forgot PIN (owner) ----------
+  $('l-forgot').onclick = function () {
+    ask('Forgot your PIN? The owner gets a reset link by email (it works once, for 30 minutes). Employees: ask Jonah for a new PIN.',
+        [{ id: 'name', label: 'Your name', value: $('l-name').value.trim() }], 'Send reset link').then(function (v) {
+      if (!v || !v.name) return;
+      $('l-msg').textContent = 'Sending…';
+      api('requestPinReset', { name: v.name, device: device() }).then(function (r) { $('l-msg').textContent = r.message; })
+        .catch(function (e) { $('l-msg').textContent = e.code === 'net' ? 'No connection. Try again with signal.' : e.message; });
+    });
+  };
+  var resetToken = '';
+  function showReset(tok) {
+    resetToken = tok;
+    $('splash').classList.add('hide'); $('app').classList.add('hide'); $('login').classList.add('hide'); $('reset').classList.remove('hide');
+    $('r-form').classList.add('hide'); $('r-msg').textContent = 'Checking the link…';
+    api('checkReset', { resetToken: tok }).then(function (r) {
+      $('r-name').value = r.name; $('r-form').classList.remove('hide');
+      $('r-msg').textContent = 'Setting a new PIN signs out every phone. Then sign in again with the new PIN.';
+      setTimeout(function () { $('r-pin').focus(); }, 60);
+    }).catch(function (e) {
+      $('r-msg').textContent = e.code === 'net' ? 'No connection. Open the link again with signal.' : e.message;
+    });
+  }
+  function doReset(e) {
+    if (nativeSubmit) return;
+    if (e) e.preventDefault();
+    var p1 = $('r-pin').value.trim(), p2 = $('r-pin2').value.trim(), name = $('r-name').value;
+    if (!/^\d{4,6}$/.test(p1)) { $('r-msg').textContent = 'The PIN must be 4 to 6 digits.'; return; }
+    if (p1 !== p2) { $('r-msg').textContent = 'The two PINs don’t match.'; return; }
+    $('r-go').disabled = true; $('r-go').textContent = 'Saving…';
+    api('resetWithToken', { resetToken: resetToken, newPin: p1 }).then(function () {
+      resetToken = '';
+      S.token = ''; LS.del('token'); LS.set('lastName', name);
+      LS.set('afterReset', name);
+      return offerSave($('r-form'), name, p1).then(function (navigating) {
+        if (navigating) return;
+        afterReset();
+      });
+    }).catch(function (e2) {
+      $('r-msg').textContent = e2.code === 'net' ? 'No connection. Try again with signal.' : e2.message;
+    }).then(function () { $('r-go').disabled = false; $('r-go').textContent = 'Set new PIN'; });
+  }
+  function afterReset() {
+    var name = LS.get('afterReset', ''); LS.del('afterReset');
+    showLogin('New PIN saved for ' + name + '. Every phone was signed out. Sign in with the new PIN. ' +
+      'If you use the GFF Receipts icon on your home screen, open it and sign in there too.');
+  }
+  $('r-form').addEventListener('submit', doReset);
+  $('r-back').onclick = function () { resetToken = ''; showLogin(); };
 
   // ---------- tabs ----------
   function show(tab) {
@@ -710,8 +807,40 @@
   function loadSettings() {
     $('set-who').textContent = S.user ? S.user.name + ' (' + S.user.role + ')' : '';
     $('set-ver').textContent = 'GFF Receipts ' + VERSION + (IS_LOCAL ? ' · LOCAL TEST → ' + API : '');
+    loadDevices();
     if (isOwner()) loadTeam();
   }
+  function day(ms) { var d = new Date(Number(ms) || 0); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function loadDevices() {
+    var box = $('devices'); box.innerHTML = '';
+    var exp = LS.get('sessExp', 0);
+    $('set-sess').textContent = exp ? 'This phone stays signed in until ' + day(exp) + (LS.get('sessTrusted', false) ? ' (kept signed in).' : '.') : '';
+    api('listSessions').then(function (r) {
+      r.sessions.forEach(function (sx) {
+        var row = el('div', 'dev'), m = el('div', 'm');
+        m.appendChild(el('div', 'n', (sx.current ? '📱 This phone' : '📱 ' + (sx.device || 'Another device'))));
+        m.appendChild(el('div', 'd', 'Signed in ' + day(sx.at) + ' · until ' + day(sx.expires) + (sx.trusted ? ' · kept signed in' : '')));
+        row.appendChild(m);
+        if (sx.current) { LS.set('sessExp', sx.expires); LS.set('sessTrusted', !!sx.trusted); $('set-sess').textContent = 'This phone stays signed in until ' + day(sx.expires) + (sx.trusted ? ' (kept signed in).' : '.'); }
+        else {
+          var b = el('button', 'btn danger', 'Sign out');
+          b.onclick = function () { b.disabled = true; api('revokeSessions', { sid: sx.sid }).then(function () { toast('Signed out that device.'); loadDevices(); }).catch(function (e) { b.disabled = false; toast(e.message, true); }); };
+          row.appendChild(b);
+        }
+        box.appendChild(row);
+      });
+    }).catch(function (e) { if (e.code !== 'auth') box.appendChild(el('div', 'hint', 'Can’t load devices: ' + e.message)); });
+  }
+  $('set-out-others').onclick = function () {
+    confirmBox('Sign out every other phone or computer signed in as you? This phone stays signed in.', 'Sign them out').then(function (ok) {
+      if (ok) api('revokeSessions', { scope: 'others' }).then(function (r) { toast('Signed out ' + r.removed + ' other device' + (r.removed === 1 ? '' : 's') + '.'); loadDevices(); }).catch(function (e) { toast(e.message, true); });
+    });
+  };
+  $('team-out-all').onclick = function () {
+    confirmBox('Sign out EVERYONE (every person, every phone) except this phone? They sign in again with their PIN. Unsent entries stay on their phones.', 'Sign out everyone').then(function (ok) {
+      if (ok) api('revokeSessions', { scope: 'everyone' }).then(function (r) { toast('Signed out ' + r.removed + ' device' + (r.removed === 1 ? '' : 's') + '.'); loadDevices(); }).catch(function (e) { toast(e.message, true); });
+    });
+  };
   function loadTeam() {
     var box = $('team'); box.innerHTML = '';
     api('listUsers').then(function (r) {
@@ -732,7 +861,13 @@
               if (ok) api('updateUser', { uid: u.uid, active: !u.active }).then(loadTeam).catch(function (e) { toast(e.message, true); });
             });
           };
-          row.appendChild(pinB); row.appendChild(act);
+          var outB = el('button', 'btn', 'Sign out');
+          outB.onclick = function () {
+            confirmBox('Sign ' + u.name + ' out on every phone? They sign in again with their PIN.', 'Sign out').then(function (ok) {
+              if (ok) api('revokeSessions', { scope: 'user', uid: u.uid }).then(function (r) { toast('Signed out ' + u.name + ' (' + r.removed + ' device' + (r.removed === 1 ? '' : 's') + ').'); }).catch(function (e) { toast(e.message, true); });
+            });
+          };
+          row.appendChild(pinB); row.appendChild(outB); row.appendChild(act);
         }
         box.appendChild(row);
       });
@@ -768,7 +903,8 @@
     }).then(function (ok) {
       if (!ok) return;
       api('logout').catch(function () {});
-      S.token = ''; LS.del('token'); LS.del('boot'); LS.del('custs'); LS.del('pkday');
+      if (HAS_PC && navigator.credentials.preventSilentAccess) navigator.credentials.preventSilentAccess().catch(function () {});
+      S.token = ''; LS.del('token'); LS.del('boot'); LS.del('custs'); LS.del('pkday'); LS.del('sessExp'); LS.del('sessTrusted');
       showLogin('Signed out.');
     });
   };
@@ -800,5 +936,15 @@
     show(['exp', 'inc', 'mil'].indexOf(go) > -1 ? go : 'home');
     loadBoot().then(function () { syncQueue(); }).catch(function (e) { if (!S.boot && e.code !== 'auth') toast('Offline: using the last saved lists.', true); });
   }
-  if (S.token && S.user) start(); else showLogin();
+  // ./signed-in and ./pin-set are where the sign-in / new-PIN forms submit (answered by sw.js). Tidy the address.
+  if (/\/(signed-in|pin-set)$/.test(location.pathname)) {
+    try { history.replaceState(null, '', location.pathname.replace(/(signed-in|pin-set)$/, '')); } catch (e) {}
+  }
+  var hashReset = (location.hash.match(/^#reset=([a-f0-9]{64})$/) || [])[1];
+  if (hashReset) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}   // the token never stays in the address bar
+    showReset(hashReset);
+  } else if (LS.get('afterReset', '')) afterReset();
+  else if (S.token && S.user) start();
+  else { showLogin(); tryStoredCredential(); }
 })();

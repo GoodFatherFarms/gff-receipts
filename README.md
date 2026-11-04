@@ -2,7 +2,7 @@
 
 Good Father Farms' phone app for receipts, sales, and truck miles. It is a Progressive Web App (PWA):
 a small website that installs to the home screen with the GFF icon, opens full screen, and works with no signal.
-All data lives in the farm's Google Sheet ledger through the Apps Script backend (`Code.gs`, v7). This folder
+All data lives in the farm's Google Sheet ledger through the Apps Script backend (`Code.gs`, v8). This folder
 holds only the phone app. No data and no passwords are stored here.
 
 ## Files
@@ -87,3 +87,13 @@ Change the files, bump `APP_VERSION` in `config.js` **and** `CACHE` in `sw.js` (
 
 `python3 -m http.server 8080` in this folder, then open `http://localhost:8080/?api=<backend URL>`. The `?api=`
 switch works only on `localhost`, so a link can never point the real app at another server.
+
+## v8 (sign-in)
+
+- The sign-in screen is a real form, so iCloud Keychain / Google Password Manager can save and fill the PIN. On Safari
+  the form really submits to `./signed-in` (and the new-PIN form to `./pin-set`); `sw.js` answers those POSTs from its
+  cache, so the PIN is never sent to GitHub. `form-action 'self'` in the CSP allows that.
+- "Keep me signed in on this device": the owner stays signed in for a year; employees 30 days.
+- Settings > Signed-in devices: sign out one device or all other devices; owner can sign out a person or everyone.
+- "Forgot PIN?" emails the owner a one-time 30-minute link (`#reset=...`) that opens the "Pick a new PIN" screen.
+- Deploy steps: `receipt_app_v8/DEPLOY-v8.md` (backend first, then push this folder).

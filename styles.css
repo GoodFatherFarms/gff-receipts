@@ -22,7 +22,7 @@ input[type=file] { display: none; }
 /* splash + sign-in */
 #splash { position: fixed; inset: 0; background: var(--green); color: var(--cream); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 50; font: 800 22px 'Merriweather Sans', sans-serif; }
 #splash img { width: 112px; height: 112px; border-radius: 26px; }
-#login { min-height: 100vh; min-height: 100dvh; background: var(--green); display: flex; align-items: center; justify-content: center; padding: calc(20px + var(--safe-t)) 18px calc(20px + var(--safe-b)); }
+#login, #reset { min-height: 100vh; min-height: 100dvh; background: var(--green); display: flex; align-items: center; justify-content: center; padding: calc(20px + var(--safe-t)) 18px calc(20px + var(--safe-b)); }
 .login-card { width: 100%; max-width: 420px; background: var(--cream); border-radius: 22px; padding: 22px 20px 18px; border: 3px solid var(--gold); }
 .login-logo { display: block; width: 96px; height: 96px; margin: 0 auto 6px; border-radius: 22px; }
 .login-card h1 { text-align: center; margin: 4px 0 0; font-size: 24px; color: var(--green); }
@@ -168,3 +168,11 @@ h2 { font-size: 18px; margin: 22px 0 8px; color: var(--green); }
 #toast.err { background: var(--red); }
 #toast.show { display: block; }
 #l-pin::placeholder { letter-spacing: normal; font-size: 18px; }
+
+/* v8: sign-in extras */
+.linkbtn { display: block; margin: 12px auto 0; background: none; border: 0; color: inherit; text-decoration: underline; font: inherit; font-size: 17px; padding: 8px; cursor: pointer; }
+#login form, #reset form { margin: 0; }
+.dev { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid rgba(40,62,54,.15); }
+.dev .m { flex: 1; min-width: 0; }
+.dev .d { font-size: 14px; opacity: .8; }
+#r-name[readonly] { opacity: .85; }
