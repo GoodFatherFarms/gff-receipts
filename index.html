@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>GFF Receipts</title>
+<meta name="description" content="Good Father Farms receipts, sales, and miles log.">
+<meta name="theme-color" content="#283E36">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GFF Receipts">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8090; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/assistant-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="splash"><img src="icons/icon-192.png" alt=""><div>GFF Receipts</div></div>
+
+<!-- SIGN IN -->
+<section id="login" class="hide">
+  <div class="login-card">
+    <img class="login-logo" src="icons/icon-192.png" alt="Good Father Farms">
+    <h1>Good Father Farms</h1>
+    <p class="login-sub">Receipts &amp; money log</p>
+    <label class="f" for="l-name">Your name</label>
+    <input id="l-name" autocomplete="username" autocapitalize="words" placeholder="First name">
+    <label class="f" for="l-pin">PIN</label>
+    <input id="l-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="4 to 6 digits">
+    <button class="save" id="l-go">Sign in</button>
+    <div class="hint center" id="l-msg">Ask Jonah for your PIN.</div>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="hide">
+<header>
+  <div class="brand"><img src="icons/icon-32.png" alt=""><div><div class="t">Good Father Farms</div><div class="s" id="who"></div></div></div>
+  <div class="hdr-right"><span id="net" class="pill">Online</span><button id="gear" class="icon-btn" aria-label="Settings">⚙</button></div>
+</header>
+<div id="update" class="hide">A new version is ready. <button id="update-go">Update now</button></div>
+
+<!-- photo inputs live outside the forms so the Home button can open the camera too -->
+<input id="cam" type="file" accept="image/*" capture="environment">
+<input id="lib" type="file" accept="image/*" multiple>
+
+<main>
+  <div id="queue" class="hide"></div>
+
+  <!-- HOME -->
+  <section class="pane on" id="p-home">
+    <div id="ownerCards" class="cards hide">
+      <div class="card"><div class="k">Spent <span class="mo"></span></div><div class="v neg" id="s-spent">…</div></div>
+      <div class="card"><div class="k">Income <span class="mo"></span></div><div class="v pos" id="s-inc">…</div></div>
+      <div class="card"><div class="k">Net this month</div><div class="v" id="s-net">…</div></div>
+      <div class="card"><div class="k">Miles this month</div><div class="v" id="s-mi">…</div></div>
+    </div>
+    <button id="pendBanner" class="banner hide"></button>
+    <div id="empHello" class="hint hide">Everything you log goes to Jonah to approve. You'll see its status below.</div>
+    <label class="big" for="cam">📷 Snap receipt</label>
+    <div class="row">
+      <button class="big alt" data-go="inc">💵 Log a sale</button>
+      <button class="big alt" data-go="mil">🚚 Log a trip</button>
+    </div>
+    <h2 id="recentTitle">Recent</h2>
+    <div id="recent"><div class="hint">Loading…</div></div>
+    <button class="btn wide" id="refresh">↻ Refresh</button>
+  </section>
+
+  <!-- EXPENSE -->
+  <section class="pane" id="p-exp">
+    <div class="photo-zone">
+      <label class="big" for="cam">📷 Snap receipt</label>
+      <label class="big alt" for="lib">🖼️ Choose from photos</label>
+      <div class="thumbs" id="thumbs"></div>
+      <div id="photoBtns" class="row hide">
+        <button class="btn" id="retake">↺ Retake last</button>
+        <label class="btn center-flex" for="cam">＋ Add page</label>
+      </div>
+      <div class="hint" id="photoHint">Tip: lay the receipt flat on something dark, fill the frame, no shadow. Long receipt? Snap it in parts with “＋ Add page”.</div>
+      <div id="ocr"></div>
+    </div>
+
+    <label class="f" for="e-amount">Total amount ($)</label>
+    <input id="e-amount" inputmode="decimal" placeholder="42.17" autocomplete="off">
+    <label class="f" for="e-vendor">Vendor / store</label>
+    <input id="e-vendor" list="vendors" placeholder="Tractor Supply, Speedway…" autocomplete="off">
+    <datalist id="vendors"></datalist>
+    <label class="f" for="e-date">Date</label>
+    <input id="e-date" type="date">
+
+    <div id="catOne">
+      <label class="f" for="e-cat">Category</label>
+      <select id="e-cat" class="catsel"></select>
+    </div>
+    <label class="chk"><input type="checkbox" id="e-split"> Split across categories</label>
+    <div id="splitBox" class="hide">
+      <div id="splits"></div>
+      <div id="left"></div>
+      <button class="btn wide" id="addSplit">＋ Add another category</button>
+    </div>
+
+    <div id="feedBox" class="hide">
+      <label class="f">Feed amount (optional)</label>
+      <div class="seg" id="f-mode"></div>
+      <div id="f-lbsRow"><input id="f-lbs" inputmode="decimal" placeholder="Pounds, e.g. 1000"></div>
+      <div id="f-bagRow" class="row hide">
+        <div><input id="f-bags" inputmode="decimal" placeholder="Bags"></div>
+        <div class="times">×</div>
+        <div><input id="f-per" inputmode="decimal" placeholder="lb/bag"></div>
+      </div>
+      <label class="f" for="f-type">Feed type</label>
+      <input id="f-type" list="feedTypes" placeholder="Broiler grower, layer pellet…" autocomplete="off">
+      <datalist id="feedTypes"></datalist>
+      <div class="cpl" id="f-cpl"></div>
+    </div>
+
+    <label class="f">Paid with</label>
+    <div class="seg" id="e-pay"></div>
+    <label class="f">Tax tags (optional)</label>
+    <div class="chips" id="e-tags"></div>
+    <div class="hint" id="tagHint"></div>
+    <label class="f" for="e-notes">Notes</label>
+    <textarea id="e-notes" rows="2" placeholder="Optional: what it was for, bag count, etc."></textarea>
+    <button class="save" id="e-save">Save expense</button>
+  </section>
+
+  <!-- INCOME -->
+  <section class="pane" id="p-inc">
+    <label class="chk"><input type="checkbox" id="pk-on"> 🐔 Pickup day mode (quick sales)</label>
+    <div id="pk" class="hide">
+      <div id="pk-day"><button type="button" id="pk-reset">New day</button>
+        <div class="d">Pickup day total on this phone, <span id="pk-date"></span></div>
+        <div class="v" id="pk-total">$0.00</div>
+        <div class="d" id="pk-break">No sales yet</div>
+      </div>
+      <label class="f" for="pk-cust">Customer</label>
+      <input id="pk-cust" list="custs" placeholder="Start typing a name" autocomplete="off" autocapitalize="words">
+      <div class="presets" id="pk-presets"></div>
+      <div id="pk-ticket"></div>
+      <label class="f">Deposit already paid online</label>
+      <div class="chips" id="pk-dep"></div>
+      <div class="due" id="pk-due">Due: $0.00</div>
+    </div>
+    <div id="inc-normal">
+      <label class="f" for="i-amount">Amount received ($)</label>
+      <input id="i-amount" inputmode="decimal" placeholder="85.00" autocomplete="off">
+    </div>
+    <label class="f">Paid by</label>
+    <div class="seg" id="i-ch"></div>
+    <div id="chkRow" class="hide"><label class="f" for="i-chk">Check #</label><input id="i-chk" inputmode="numeric" placeholder="1042" autocomplete="off"></div>
+    <label class="f" for="i-date">Date</label>
+    <input id="i-date" type="date">
+    <div id="inc-normal2">
+      <label class="f" for="i-cust">Customer (optional)</label>
+      <input id="i-cust" list="custs" placeholder="Name" autocomplete="off" autocapitalize="words">
+      <div class="row">
+        <div><label class="f" for="i-birds">Birds (optional)</label><input id="i-birds" inputmode="numeric" placeholder="2"></div>
+        <div><label class="f" for="i-prod">Product</label><input id="i-prod" list="prods" placeholder="Whole chicken"></div>
+      </div>
+    </div>
+    <datalist id="custs"></datalist>
+    <datalist id="prods"><option>Whole chicken</option><option>Parted chicken</option><option>Turkey</option><option>Eggs</option><option>Deposit / preorder</option><option>Other</option></datalist>
+    <label class="f" for="i-notes">Notes</label>
+    <textarea id="i-notes" rows="2" placeholder="Optional: pickup date, etc."></textarea>
+    <button class="save" id="i-save">Save sale</button>
+  </section>
+
+  <!-- MILEAGE -->
+  <section class="pane" id="p-mil">
+    <label class="f" for="m-purpose">Trip purpose</label>
+    <input id="m-purpose" list="purposes" placeholder="Feed run" autocomplete="off">
+    <datalist id="purposes"><option>Feed run</option><option>Processing / butcher</option><option>Customer pickup / delivery</option><option>Supply run</option><option>Hatchery / chick pickup</option><option>Bank / post office</option><option>Farm meeting</option></datalist>
+    <div class="row">
+      <div><label class="f" for="m-from">From</label><input id="m-from" placeholder="Farm"></div>
+      <div><label class="f" for="m-to">To</label><input id="m-to" placeholder="Feed mill"></div>
+    </div>
+    <label class="f" for="m-miles">Miles (one way, or total)</label>
+    <input id="m-miles" inputmode="decimal" placeholder="18">
+    <label class="chk"><input type="checkbox" id="m-rt"> Round trip (doubles the miles)</label>
+    <div class="hint" id="m-est"></div>
+    <label class="f" for="m-date">Date</label>
+    <input id="m-date" type="date">
+    <label class="f" for="m-notes">Notes</label>
+    <textarea id="m-notes" rows="2" placeholder="Optional"></textarea>
+    <button class="save" id="m-save">Save trip</button>
+    <div class="hint">Tax tip: for the truck, deduct either miles (IRS rate) or actual gas/repairs, not both.</div>
+  </section>
+
+  <!-- APPROVALS (owner) -->
+  <section class="pane" id="p-ok">
+    <h2>Waiting for your approval</h2>
+    <div class="hint">Employee entries don't count in your totals or the Monthly Summary until you approve them. Rejected entries stay in the sheet, marked Rejected, and never count.</div>
+    <div id="appr"><div class="hint">Loading…</div></div>
+    <button class="btn wide hide" id="apprAll">✓ Approve all shown</button>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="pane" id="p-set">
+    <h2>Settings</h2>
+    <div class="card"><div class="k">Signed in as</div><div class="v small" id="set-who"></div></div>
+    <button class="btn wide" id="set-pin">Change my PIN</button>
+    <div id="teamBox" class="hide">
+      <h2>Team</h2>
+      <div class="hint">Each person signs in with their own name and PIN. Turning someone off signs them out on every phone right away.</div>
+      <div id="team"></div>
+      <button class="btn wide" id="team-add">＋ Add a person</button>
+    </div>
+    <h2>This phone</h2>
+    <button class="btn wide" id="set-sync">↻ Send waiting entries now</button>
+    <button class="btn wide" id="set-reload">⟳ Reload app data</button>
+    <button class="btn wide danger" id="set-out">Sign out</button>
+    <div class="hint center" id="set-ver"></div>
+  </section>
+</main>
+
+<nav id="tabs">
+  <button data-tab="home" class="on"><span>🏠</span>Home</button>
+  <button data-tab="exp"><span>🧾</span>Expense</button>
+  <button data-tab="inc"><span>💵</span>Income</button>
+  <button data-tab="mil"><span>🚚</span>Miles</button>
+  <button data-tab="ok" id="tab-ok" class="hide"><span>✅</span>Approve<b id="okBadge" class="badge hide"></b></button>
+</nav>
+</div>
+
+<div id="modal" class="hide" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div id="m-text"></div>
+    <div id="m-fields"></div>
+    <div class="row"><button class="btn" id="m-cancel">Cancel</button><button class="btn primary" id="m-ok">OK</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
