@@ -4,7 +4,7 @@
    v8: the sign-in and new-PIN forms really submit (POST ./signed-in, ./pin-set) so iCloud Keychain offers to
    save the PIN. Those POSTs are answered here from the cache and never reach the network. */
 'use strict';
-var CACHE = 'gff-receipts-8.0.0';
+var CACHE = 'gff-receipts-8.1.0';
 var SHELL = [
   './', './index.html', './styles.css', './app.js', './config.js', './manifest.webmanifest', './favicon.ico',
   './fonts/assistant-latin.woff2', './fonts/merriweathersans-latin.woff2',

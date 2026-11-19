@@ -1,4 +1,4 @@
-/* GFF Receipts PWA (v8). Talks to the Apps Script backend with fetch:
+/* GFF Receipts PWA (v8.1). Talks to the Apps Script backend with fetch:
    POST, Content-Type text/plain (no CORS preflight), redirect: follow (Apps Script answers 302 -> googleusercontent).
    Offline: the app shell is cached by sw.js; unsent entries wait in IndexedDB and go up when there's signal. */
 'use strict';
@@ -286,7 +286,6 @@
     buildTags(b.taxTags || Object.keys(TAG_HELP));
     PRESETS = b.presets || [];
     buildPresets();
-    milesEst();
     var owner = isOwner();
     $('tab-ok').classList.toggle('hide', !owner);
     $('ownerCards').classList.toggle('hide', !owner);
@@ -493,7 +492,6 @@
     updateFeed();
   }
   function resetIncome() { ['i-amount', 'i-cust', 'i-birds', 'i-prod', 'i-notes', 'i-chk', 'pk-cust'].forEach(function (id) { $(id).value = ''; }); $('i-date').value = today(); pkClear(); }
-  function resetMiles() { ['m-purpose', 'm-to', 'm-miles', 'm-notes'].forEach(function (id) { $(id).value = ''; }); $('m-rt').checked = false; $('m-from').value = LS.get('from', ''); $('m-date').value = today(); milesEst(); }
 
   // ---------- expense save ----------
   function saveExpense() {
@@ -633,23 +631,7 @@
     if (CUSTS.map(lc).indexOf(lc(c)) < 0) { CUSTS.unshift(c); fillList('custs', CUSTS.slice(0, 300)); }
   }
 
-  // ---------- miles ----------
-  function milesEst() {
-    var m = num($('m-miles').value); if ($('m-rt').checked) m = m * 2;
-    var rate = Number(S.boot && S.boot.irsRate) || 0.76;
-    $('m-est').textContent = isNaN(m) ? 'IRS rate: $' + rate.toFixed(3) + '/mi' : m + ' mi ≈ ' + money(m * rate) + ' deduction at $' + rate.toFixed(3) + '/mi';
-  }
-  $('m-miles').oninput = milesEst; $('m-rt').onchange = milesEst;
-  function saveMiles() {
-    var m = num($('m-miles').value);
-    if (isNaN(m) || m <= 0) return toast('Type the miles.', true);
-    if (!$('m-purpose').value.trim()) return toast('What was the trip for?', true);
-    var d = { type: 'mileage', rid: newRid(), date: $('m-date').value || today(), purpose: $('m-purpose').value.trim(), from: $('m-from').value.trim(),
-              to: $('m-to').value.trim(), miles: m, roundTrip: $('m-rt').checked, notes: $('m-notes').value.trim() };
-    LS.set('from', d.from);
-    submit(d, (d.roundTrip ? m * 2 : m) + ' mi trip'); resetMiles();
-  }
-  $('e-save').onclick = saveExpense; $('i-save').onclick = saveIncome; $('m-save').onclick = saveMiles;
+  $('e-save').onclick = saveExpense; $('i-save').onclick = saveIncome;
 
   // ---------- send + offline queue ----------
   // Every entry carries its own id, so retrying never double-saves. Queue items remember who made them,
@@ -721,7 +703,6 @@
         document.querySelectorAll('.mo').forEach(function (m) { m.textContent = s.month.split(' ')[0]; });
         $('s-spent').textContent = money(s.spent); $('s-inc').textContent = money(s.income);
         var net = s.income - s.spent; $('s-net').textContent = money(net); $('s-net').className = 'v ' + (net < 0 ? 'neg' : 'pos');
-        $('s-mi').textContent = Math.round(s.miles) + ' mi';
         S.pending = s.pendingCount || 0;
         var pb = $('pendBanner'); pb.classList.toggle('hide', !S.pending);
         pb.textContent = '✅ ' + S.pending + ' employee entr' + (S.pending === 1 ? 'y' : 'ies') + ' waiting for you (' + money(s.pendingTotal) + '). Tap to review.';
@@ -929,11 +910,11 @@
     $('splash').classList.add('hide'); $('login').classList.add('hide'); $('app').classList.remove('hide');
     if (S.boot) applyBoot(S.boot);
     if (LS.get('pkOn', false)) { $('pk-on').checked = true; $('pk-on').onchange.call($('pk-on')); }
-    resetExpense(); resetIncome(); resetMiles();
+    resetExpense(); resetIncome();
     setNet(navigator.onLine);
     renderQueue();
     var go = new URLSearchParams(location.search).get('go');
-    show(['exp', 'inc', 'mil'].indexOf(go) > -1 ? go : 'home');
+    show(['exp', 'inc'].indexOf(go) > -1 ? go : 'home');
     loadBoot().then(function () { syncQueue(); }).catch(function (e) { if (!S.boot && e.code !== 'auth') toast('Offline: using the last saved lists.', true); });
   }
   // ./signed-in and ./pin-set are where the sign-in / new-PIN forms submit (answered by sw.js). Tidy the address.

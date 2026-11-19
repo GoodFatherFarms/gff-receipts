@@ -1,6 +1,6 @@
 # GFF Receipts (installable app)
 
-Good Father Farms' phone app for receipts, sales, and truck miles. It is a Progressive Web App (PWA):
+Good Father Farms' phone app for receipts and sales. It is a Progressive Web App (PWA):
 a small website that installs to the home screen with the GFF icon, opens full screen, and works with no signal.
 All data lives in the farm's Google Sheet ledger through the Apps Script backend (`Code.gs`, v8). This folder
 holds only the phone app. No data and no passwords are stored here.
@@ -9,7 +9,7 @@ holds only the phone app. No data and no passwords are stored here.
 
 | File | What it is |
 |---|---|
-| `index.html` | The app's single page (sign-in, Home, Expense, Income, Miles, Approve, Settings) |
+| `index.html` | The app's single page (sign-in, Home, Expense, Income, Approve, Settings) |
 | `app.js` | Everything the app does: sign-in, forms, photos + OCR, offline queue, approvals, team |
 | `styles.css` | GFF look: green `#283E36`, cream `#F4EFE2`, gold `#C8A24A`, Merriweather Sans + Assistant |
 | `config.js` | The backend URL (the Apps Script `/exec` link) and the app version |
@@ -87,6 +87,10 @@ Change the files, bump `APP_VERSION` in `config.js` **and** `CACHE` in `sw.js` (
 
 `python3 -m http.server 8080` in this folder, then open `http://localhost:8080/?api=<backend URL>`. The `?api=`
 switch works only on `localhost`, so a link can never point the real app at another server.
+
+## v8.1 (mileage removed)
+
+The Miles page, nav button, and home "Log a trip" shortcut are gone. Log truck gas as a regular expense (date, amount, vendor, category `gas/mileage`), the same way as feed. The backend refuses `type: mileage` saves and no longer writes to the Mileage tab. Existing Mileage rows are left as they are.
 
 ## v8 (sign-in)
 

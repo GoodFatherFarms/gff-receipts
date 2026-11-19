@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>GFF Receipts</title>
-<meta name="description" content="Good Father Farms receipts, sales, and miles log.">
+<meta name="description" content="Good Father Farms receipts and sales log.">
 <meta name="theme-color" content="#283E36">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,12 +13,12 @@
 <meta name="format-detection" content="telephone=no">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8090; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'self'">
-<link rel="manifest" href="manifest.webmanifest?v=8">
+<link rel="manifest" href="manifest.webmanifest?v=8.1">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-v8.png?v=8">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-v8.png?v=8.1">
 <link rel="preload" href="fonts/assistant-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=8.1">
 </head>
 <body>
 <div id="splash"><img src="icons/icon-192.png" alt=""><div>GFF Receipts</div></div>
@@ -86,15 +86,11 @@
       <div class="card"><div class="k">Spent <span class="mo"></span></div><div class="v neg" id="s-spent">…</div></div>
       <div class="card"><div class="k">Income <span class="mo"></span></div><div class="v pos" id="s-inc">…</div></div>
       <div class="card"><div class="k">Net this month</div><div class="v" id="s-net">…</div></div>
-      <div class="card"><div class="k">Miles this month</div><div class="v" id="s-mi">…</div></div>
     </div>
     <button id="pendBanner" class="banner hide"></button>
     <div id="empHello" class="hint hide">Everything you log goes to Jonah to approve. You'll see its status below.</div>
     <label class="big" for="cam">📷 Snap receipt</label>
-    <div class="row">
-      <button class="big alt" data-go="inc">💵 Log a sale</button>
-      <button class="big alt" data-go="mil">🚚 Log a trip</button>
-    </div>
+    <button class="big alt" data-go="inc">💵 Log a sale</button>
     <h2 id="recentTitle">Recent</h2>
     <div id="recent"><div class="hint">Loading…</div></div>
     <button class="btn wide" id="refresh">↻ Refresh</button>
@@ -199,27 +195,6 @@
     <button class="save" id="i-save">Save sale</button>
   </section>
 
-  <!-- MILEAGE -->
-  <section class="pane" id="p-mil">
-    <label class="f" for="m-purpose">Trip purpose</label>
-    <input id="m-purpose" list="purposes" placeholder="Feed run" autocomplete="off">
-    <datalist id="purposes"><option>Feed run</option><option>Processing / butcher</option><option>Customer pickup / delivery</option><option>Supply run</option><option>Hatchery / chick pickup</option><option>Bank / post office</option><option>Farm meeting</option></datalist>
-    <div class="row">
-      <div><label class="f" for="m-from">From</label><input id="m-from" placeholder="Farm"></div>
-      <div><label class="f" for="m-to">To</label><input id="m-to" placeholder="Feed mill"></div>
-    </div>
-    <label class="f" for="m-miles">Miles (one way, or total)</label>
-    <input id="m-miles" inputmode="decimal" placeholder="18">
-    <label class="chk"><input type="checkbox" id="m-rt"> Round trip (doubles the miles)</label>
-    <div class="hint" id="m-est"></div>
-    <label class="f" for="m-date">Date</label>
-    <input id="m-date" type="date">
-    <label class="f" for="m-notes">Notes</label>
-    <textarea id="m-notes" rows="2" placeholder="Optional"></textarea>
-    <button class="save" id="m-save">Save trip</button>
-    <div class="hint">Tax tip: for the truck, deduct either miles (IRS rate) or actual gas/repairs, not both.</div>
-  </section>
-
   <!-- APPROVALS (owner) -->
   <section class="pane" id="p-ok">
     <h2>Waiting for your approval</h2>
@@ -256,7 +231,6 @@
   <button data-tab="home" class="on"><span>🏠</span>Home</button>
   <button data-tab="exp"><span>🧾</span>Expense</button>
   <button data-tab="inc"><span>💵</span>Income</button>
-  <button data-tab="mil"><span>🚚</span>Miles</button>
   <button data-tab="ok" id="tab-ok" class="hide"><span>✅</span>Approve<b id="okBadge" class="badge hide"></b></button>
 </nav>
 </div>
@@ -269,7 +243,7 @@
   </div>
 </div>
 <div id="toast"></div>
-<script src="config.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="config.js?v=8.1"></script>
+<script src="app.js?v=8.1"></script>
 </body>
 </html>
